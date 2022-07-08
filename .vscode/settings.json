@@ -1,3 +1,9 @@
 {
-  "cSpell.words": ["fbrcode", "smartcontract"]
+  "cSpell.words": [
+    "fbrcode",
+    "nomiclabs",
+    "smartcontract",
+    "solhint",
+    "typechain"
+  ]
 }
