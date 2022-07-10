@@ -22,11 +22,13 @@ import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 
 // 5: Errors
 error Lottery__NotEnoughEthEntered();
+error Lottery__TransferFailed();
 
 // 6: Contracts
 
 contract Lottery is VRFConsumerBaseV2 {
   // 6.a: Type declarations
+
   // 6.b: State variables
   uint256 private immutable i_entranceFee;
   address payable[] private s_players;
@@ -37,9 +39,13 @@ contract Lottery is VRFConsumerBaseV2 {
   uint16 private constant REQUEST_CONFIRMATIONS = 3;
   uint32 private constant NUMBER_WORDS = 1;
 
+  // Lottery variables
+  address private s_recentWinner;
+
   // 6.c: Events
   event LotteryEnter(address indexed player);
   event RequestedLotteryWinner(uint256 indexed requestId);
+  event WinnerPicked(address indexed winner);
 
   // 6.d: Modifiers
   // 6.e: Functions
@@ -108,7 +114,23 @@ contract Lottery is VRFConsumerBaseV2 {
 
   /// @notice process the random number
   /// @dev Words is a computer science term, but we can think this as random number
-  function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {}
+  /// @dev use the modulo operation (%) to calculate the winner among the players array
+  /// param requestId Identifies the request made to the coordinator to get the random number (not used in this case).
+  /// @param randomWords The random number array wich in this case is fixed to 1 word (number).
+  function fulfillRandomWords(
+    uint256, /*requestId*/
+    uint256[] memory randomWords
+  ) internal override {
+    uint256 indexOdWinner = randomWords[0] % s_players.length;
+    address payable recentWinner = s_players[indexOdWinner];
+    s_recentWinner = recentWinner;
+    // send all contract balance to the winner
+    (bool success, ) = recentWinner.call{value: address(this).balance}("");
+    if (!success) {
+      revert Lottery__TransferFailed();
+    }
+    emit WinnerPicked(recentWinner);
+  }
 
   // 6.e.7: Private
 
@@ -119,5 +141,9 @@ contract Lottery is VRFConsumerBaseV2 {
 
   function getPlayer(uint256 index) public view returns (address) {
     return s_players[index];
+  }
+
+  function getRecentWinner() public view returns (address) {
+    return s_recentWinner;
   }
 }
