@@ -15,6 +15,7 @@ pragma solidity ^0.8.7;
 
 // 2: Import statements
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 
 // 3: Interfaces (none in this case)
 // 4: Libraries (none in this case)
@@ -29,16 +30,33 @@ contract Lottery is VRFConsumerBaseV2 {
   // 6.b: State variables
   uint256 private immutable i_entranceFee;
   address payable[] private s_players;
+  VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
+  bytes32 private immutable i_gasLane;
+  uint64 private immutable i_subscriptionId;
+  uint32 private immutable i_callbackGasLimit;
+  uint16 private constant REQUEST_CONFIRMATIONS = 3;
+  uint32 private constant NUMBER_WORDS = 1;
 
   // 6.c: Events
   event LotteryEnter(address indexed player);
+  event RequestedLotteryWinner(uint256 indexed requestId);
 
   // 6.d: Modifiers
   // 6.e: Functions
 
   // 6.e.1: Constructor
-  constructor(address vrfCoordinatorV2, uint256 entranceFee) VRFConsumerBaseV2(vrfCoordinatorV2) {
+  constructor(
+    address vrfCoordinatorV2,
+    uint256 entranceFee,
+    bytes32 gasLane,
+    uint64 subscriptionId,
+    uint32 callbackGasLimit
+  ) VRFConsumerBaseV2(vrfCoordinatorV2) {
     i_entranceFee = entranceFee;
+    i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+    i_gasLane = gasLane;
+    i_subscriptionId = subscriptionId;
+    i_callbackGasLimit = callbackGasLimit;
   }
 
   // 6.e.2: Receive
@@ -51,7 +69,16 @@ contract Lottery is VRFConsumerBaseV2 {
   /// @dev Step 1 : request the random number
   /// @dev Step 2 : once we get it, do something with it
   /// @dev it is a 2 (two) transaction process: intentional to make it trully random
-  function requestRandomWinner() external {}
+  function requestRandomWinner() external {
+    uint256 requestId = i_vrfCoordinator.requestRandomWords(
+      i_gasLane, // The gas lane key hash value, which is the maximum gas price you are willing to pay for a request in wei. It functions as an ID of the off-chain VRF job that runs in response to requests.
+      i_subscriptionId, // subscription ID that this contract uses for funding requests.
+      REQUEST_CONFIRMATIONS, // how many confirmations the Chainlink node should wait before responding. The longer the node waits, the more secure the random value is. It must be greater than the minimumRequestBlockConfirmations limit on the coordinator contract.
+      i_callbackGasLimit, // limit for how much gas to use for the callback request to your contract's fulfillRandomWords() function. It must be less than the maxGasLimit limit on the coordinator contract.
+      NUMBER_WORDS // many random values to request. If you can use several random values in a single callback, you can reduce the amount of gas that you spend per random value.
+    );
+    emit RequestedLotteryWinner(requestId);
+  }
 
   // 6.e.5: Public
 
