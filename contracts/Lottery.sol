@@ -25,9 +25,18 @@ import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 error Lottery__NotEnoughEthEntered();
 error Lottery__TransferFailed();
 error Lottery__NotOpen();
+error Lottery__UpkeepNotValid(
+  uint256 currentBalance,
+  uint256 numberOfPLayers,
+  uint256 lotteryState
+);
 
 // 6: Contracts
 
+/// @title Sample Lottery Contract
+/// @author Fabio Bressler
+/// @notice Contract for an untamperable decentralized lottery smart contract
+/// @dev This implements Chainlink VRF v2 and Keepers
 contract Lottery is VRFConsumerBaseV2, KeeperCompatibleInterface {
   // 6.a: Type declarations
   enum LotteryState {
@@ -89,10 +98,20 @@ contract Lottery is VRFConsumerBaseV2, KeeperCompatibleInterface {
   /// @dev Step 1 : request the random number
   /// @dev Step 2 : once we get it, do something with it
   /// @dev it is a 2 (two) transaction process: intentional to make it trully random
-  function requestRandomWinner() external {
-    if (s_lotteryState != LotteryState.OPEN) {
-      revert Lottery__NotOpen();
+  // RENAMED : function requestRandomWinner() external {
+  // FROM requestRandomWinner to performUpkeep
+  function performUpkeep(
+    bytes calldata /* performData */
+  ) external override {
+    (bool upkeepNeeded, ) = checkUpkeep("");
+    if (!upkeepNeeded) {
+      revert Lottery__UpkeepNotValid(
+        address(this).balance,
+        s_players.length,
+        uint256(s_lotteryState)
+      );
     }
+
     s_lotteryState = LotteryState.CALCULATING;
     uint256 requestId = i_vrfCoordinator.requestRandomWords(
       i_gasLane, // The gas lane key hash value, which is the maximum gas price you are willing to pay for a request in wei. It functions as an ID of the off-chain VRF job that runs in response to requests.
@@ -113,10 +132,11 @@ contract Lottery is VRFConsumerBaseV2, KeeperCompatibleInterface {
   /// 3. Our subscription is funded with LINK
   /// 4. The lottery should be in an "open" state
   /// Note: block.timestamp = returns the current timestamp of the blockchain
+
   function checkUpkeep(
-    bytes calldata /* checkData */ // espeficy any kind of data or even other functions
+    bytes memory /* checkData */ // espeficy any kind of data or even other functions
   )
-    external
+    public
     view
     override
     returns (
@@ -131,10 +151,6 @@ contract Lottery is VRFConsumerBaseV2, KeeperCompatibleInterface {
     upkeepNeeded = isOpen && hasEnoughTimePassed && hasEnoughPlayers && hasEnoughEth;
     // automatically returns since the variable is declared on function scope
   }
-
-  function performUpkeep(
-    bytes calldata /* performData */
-  ) external override {}
 
   // 6.e.5: Public
 
@@ -179,6 +195,7 @@ contract Lottery is VRFConsumerBaseV2, KeeperCompatibleInterface {
     s_recentWinner = recentWinner;
     s_lotteryState = LotteryState.OPEN;
     s_players = new address payable[](0); // reset the players array
+    s_lastTimestamp = block.timestamp; // update the last timestamp to the current block timestamp
     // send all contract balance to the winner
     (bool success, ) = recentWinner.call{value: address(this).balance}("");
     if (!success) {
@@ -200,5 +217,29 @@ contract Lottery is VRFConsumerBaseV2, KeeperCompatibleInterface {
 
   function getRecentWinner() public view returns (address) {
     return s_recentWinner;
+  }
+
+  function getLotteryState() public view returns (LotteryState) {
+    return s_lotteryState;
+  }
+
+  function getNumberOfWOrds() public pure returns (uint256) {
+    return NUMBER_WORDS;
+  }
+
+  function getNumberOfPlayers() public view returns (uint256) {
+    return s_players.length;
+  }
+
+  function getLatestTimestamp() public view returns (uint256) {
+    return s_lastTimestamp;
+  }
+
+  function getRequestConfirmations() public pure returns (uint256) {
+    return REQUEST_CONFIRMATIONS;
+  }
+
+  function getSecondsInterval() public view returns (uint256) {
+    return i_secondsInterval;
   }
 }
