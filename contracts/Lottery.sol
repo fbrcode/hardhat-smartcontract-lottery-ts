@@ -16,6 +16,7 @@ pragma solidity ^0.8.7;
 // 2: Import statements
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 
 // 3: Interfaces (none in this case)
 // 4: Libraries (none in this case)
@@ -23,11 +24,16 @@ import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 // 5: Errors
 error Lottery__NotEnoughEthEntered();
 error Lottery__TransferFailed();
+error Lottery__NotOpen();
 
 // 6: Contracts
 
-contract Lottery is VRFConsumerBaseV2 {
+contract Lottery is VRFConsumerBaseV2, KeeperCompatibleInterface {
   // 6.a: Type declarations
+  enum LotteryState {
+    OPEN,
+    CALCULATING
+  } // Behind the scenes, we are doing: uint256 where 0 = OPEN, 1 = CALCULATING
 
   // 6.b: State variables
   uint256 private immutable i_entranceFee;
@@ -40,7 +46,10 @@ contract Lottery is VRFConsumerBaseV2 {
   uint32 private constant NUMBER_WORDS = 1;
 
   // Lottery variables
-  address private s_recentWinner;
+  address private s_recentWinner; // The last winner of the lottery
+  LotteryState private s_lotteryState; // 0 = OPEN, 1 = CALCULATING
+  uint256 private s_lastTimestamp; // timestamp of the last lottery draw
+  uint256 private immutable i_secondsInterval; // how many seconds between each lottery draw
 
   // 6.c: Events
   event LotteryEnter(address indexed player);
@@ -56,13 +65,17 @@ contract Lottery is VRFConsumerBaseV2 {
     uint256 entranceFee,
     bytes32 gasLane,
     uint64 subscriptionId,
-    uint32 callbackGasLimit
+    uint32 callbackGasLimit,
+    uint256 secondsInterval
   ) VRFConsumerBaseV2(vrfCoordinatorV2) {
     i_entranceFee = entranceFee;
     i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
     i_gasLane = gasLane;
     i_subscriptionId = subscriptionId;
     i_callbackGasLimit = callbackGasLimit;
+    s_lotteryState = LotteryState.OPEN; // Initial state is OPEN
+    s_lastTimestamp = block.timestamp; // Initialize the last timestamp to the current block timestamp
+    i_secondsInterval = secondsInterval; // Initialize the seconds interval to the given value
   }
 
   // 6.e.2: Receive
@@ -72,10 +85,15 @@ contract Lottery is VRFConsumerBaseV2 {
 
   /// @notice Request a random winner
   /// @dev Request a random winner (verifiably random) and automatically run through Chainlink Keepers
+  /// @dev https://docs.chain.link/docs/chainlink-keepers/introduction/
   /// @dev Step 1 : request the random number
   /// @dev Step 2 : once we get it, do something with it
   /// @dev it is a 2 (two) transaction process: intentional to make it trully random
   function requestRandomWinner() external {
+    if (s_lotteryState != LotteryState.OPEN) {
+      revert Lottery__NotOpen();
+    }
+    s_lotteryState = LotteryState.CALCULATING;
     uint256 requestId = i_vrfCoordinator.requestRandomWords(
       i_gasLane, // The gas lane key hash value, which is the maximum gas price you are willing to pay for a request in wei. It functions as an ID of the off-chain VRF job that runs in response to requests.
       i_subscriptionId, // subscription ID that this contract uses for funding requests.
@@ -86,6 +104,38 @@ contract Lottery is VRFConsumerBaseV2 {
     emit RequestedLotteryWinner(requestId);
   }
 
+  /// @notice Verify if time enoug has passed to select another winner
+  /// @dev Function that Chainlink Keeper nodes call
+  /// They look for the `upKeepNeeded` to return true
+  /// The following should be true in order to return true:
+  /// 1. Our time interval should have passed
+  /// 2. The lottery should have at least one player, and have some ETH
+  /// 3. Our subscription is funded with LINK
+  /// 4. The lottery should be in an "open" state
+  /// Note: block.timestamp = returns the current timestamp of the blockchain
+  function checkUpkeep(
+    bytes calldata /* checkData */ // espeficy any kind of data or even other functions
+  )
+    external
+    view
+    override
+    returns (
+      bool upkeepNeeded,
+      bytes memory /* performData */
+    )
+  {
+    bool isOpen = LotteryState.OPEN == s_lotteryState;
+    bool hasEnoughTimePassed = (block.timestamp - s_lastTimestamp) > i_secondsInterval;
+    bool hasEnoughPlayers = s_players.length > 0;
+    bool hasEnoughEth = address(this).balance > i_entranceFee;
+    upkeepNeeded = isOpen && hasEnoughTimePassed && hasEnoughPlayers && hasEnoughEth;
+    // automatically returns since the variable is declared on function scope
+  }
+
+  function performUpkeep(
+    bytes calldata /* performData */
+  ) external override {}
+
   // 6.e.5: Public
 
   /// @notice Enter the lottery
@@ -93,6 +143,9 @@ contract Lottery is VRFConsumerBaseV2 {
   function enterLottery() public payable {
     if (msg.value < i_entranceFee) {
       revert Lottery__NotEnoughEthEntered();
+    }
+    if (s_lotteryState != LotteryState.OPEN) {
+      revert Lottery__NotOpen();
     }
     s_players.push(payable(msg.sender));
     // events
@@ -124,6 +177,8 @@ contract Lottery is VRFConsumerBaseV2 {
     uint256 indexOdWinner = randomWords[0] % s_players.length;
     address payable recentWinner = s_players[indexOdWinner];
     s_recentWinner = recentWinner;
+    s_lotteryState = LotteryState.OPEN;
+    s_players = new address payable[](0); // reset the players array
     // send all contract balance to the winner
     (bool success, ) = recentWinner.call{value: address(this).balance}("");
     if (!success) {
