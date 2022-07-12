@@ -147,7 +147,7 @@ contract Lottery is VRFConsumerBaseV2, KeeperCompatibleInterface {
     bool isOpen = LotteryState.OPEN == s_lotteryState;
     bool hasEnoughTimePassed = (block.timestamp - s_lastTimestamp) > i_secondsInterval;
     bool hasEnoughPlayers = s_players.length > 0;
-    bool hasEnoughEth = address(this).balance > i_entranceFee;
+    bool hasEnoughEth = address(this).balance >= i_entranceFee;
     upkeepNeeded = isOpen && hasEnoughTimePassed && hasEnoughPlayers && hasEnoughEth;
     // automatically returns since the variable is declared on function scope
   }
