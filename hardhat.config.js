@@ -26,13 +26,10 @@ module.exports = {
       accounts: [PRIVATE_KEY],
     },
   },
-  solidity: "0.8.7",
-  namedAccounts: {
-    deployer: {
-      default: 0,
-    },
-    player: {
-      default: 1,
+  etherscan: {
+    // yarn hardhat verify --network <NETWORK> <CONTRACT_ADDRESS> <CONSTRUCTOR_PARAMETERS>
+    apiKey: {
+      rinkeby: ETHERSCAN_API_KEY,
     },
   },
   gasReporter: {
@@ -44,6 +41,15 @@ module.exports = {
     token: "ETH", // how much it costs to deploy/run on ethereum
     // token: "MATIC", // how much it costs to deploy/run on polygon
   },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+    },
+    player: {
+      default: 1,
+    },
+  },
+  solidity: "0.8.7",
   mocha: {
     timeout: 200000, // 200 seconds max
   },
