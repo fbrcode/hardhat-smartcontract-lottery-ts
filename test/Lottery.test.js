@@ -9,7 +9,7 @@ const { assert, expect } = require("chai");
         lotteryContract,
         vrfCoordinatorV2Mock,
         lotteryEntranceFee,
-        secondsInterval,
+        keepersUpdateIntervalSeconds,
         player;
       const chainId = network.config.chainId;
 
@@ -21,7 +21,7 @@ const { assert, expect } = require("chai");
         lotteryContract = await ethers.getContract("Lottery");
         lottery = lotteryContract.connect(player);
         lotteryEntranceFee = await lottery.getEntranceFee();
-        secondsInterval = await lottery.getSecondsInterval();
+        keepersUpdateIntervalSeconds = await lottery.getSecondsInterval();
       });
 
       describe("constructor", function () {
@@ -29,7 +29,10 @@ const { assert, expect } = require("chai");
         it("initializes the lottery correctly", async function () {
           const lotteryState = await lottery.getLotteryState();
           assert.equal(lotteryState.toString(), "0");
-          assert.equal(secondsInterval.toString(), networkConfig[chainId].secondsInterval);
+          assert.equal(
+            keepersUpdateIntervalSeconds.toString(),
+            networkConfig[chainId].keepersUpdateIntervalSeconds
+          );
         });
       });
 
@@ -56,7 +59,9 @@ const { assert, expect } = require("chai");
         it("doesn't allow entrance when lottery is calculating", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
           // to run performUpkeep enough time has to pass
-          await network.provider.send("evm_increaseTime", [secondsInterval.toNumber() + 1]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [
+            keepersUpdateIntervalSeconds.toNumber() + 1,
+          ]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           // we pretend to be a chainlink keeper
           await lottery.performUpkeep([]);
@@ -68,7 +73,9 @@ const { assert, expect } = require("chai");
 
       describe("checkUpkeep", function () {
         it("returns false if people haven't sent any ETH", async function () {
-          await network.provider.send("evm_increaseTime", [secondsInterval.toNumber() + 1]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [
+            keepersUpdateIntervalSeconds.toNumber() + 1,
+          ]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           // callStatic simulates the function call returns
           const { upkeepNeeded } = await lottery.callStatic.checkUpkeep([]);
@@ -77,7 +84,9 @@ const { assert, expect } = require("chai");
 
         it("returns false if lottery ins't open", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [secondsInterval.toNumber() + 1]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [
+            keepersUpdateIntervalSeconds.toNumber() + 1,
+          ]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           await lottery.performUpkeep([]); // or await lottery.performUpkeep("0x");
           const lotteryState = await lottery.getLotteryState();
@@ -88,7 +97,9 @@ const { assert, expect } = require("chai");
 
         it("returns false if enough time hasn't passed", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [secondsInterval.toNumber() - 1]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [
+            keepersUpdateIntervalSeconds.toNumber() - 1,
+          ]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           const { upkeepNeeded } = await lottery.callStatic.checkUpkeep("0x");
           assert(!upkeepNeeded);
@@ -96,7 +107,9 @@ const { assert, expect } = require("chai");
 
         it("returns true if enough time has passed, has players, eth, and is open", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [secondsInterval.toNumber() + 1]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [
+            keepersUpdateIntervalSeconds.toNumber() + 1,
+          ]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           const { upkeepNeeded } = await lottery.callStatic.checkUpkeep("0x");
           assert(upkeepNeeded);
@@ -106,7 +119,9 @@ const { assert, expect } = require("chai");
       describe("performUpkeep", function () {
         it("it can only run if checkUpkeep is true", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [secondsInterval.toNumber() + 1]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [
+            keepersUpdateIntervalSeconds.toNumber() + 1,
+          ]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           const tx = await lottery.performUpkeep([]);
           assert(tx);
@@ -118,7 +133,9 @@ const { assert, expect } = require("chai");
 
         it("updates the lottery state, emits an event, and calls the vrf coordinator", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [secondsInterval.toNumber() + 1]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [
+            keepersUpdateIntervalSeconds.toNumber() + 1,
+          ]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           const txResponse = await lottery.performUpkeep([]);
           const txReceipt = await txResponse.wait(1);
@@ -132,7 +149,9 @@ const { assert, expect } = require("chai");
       describe("fulfillRandomWords", function () {
         beforeEach(async () => {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [secondsInterval.toNumber() + 1]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [
+            keepersUpdateIntervalSeconds.toNumber() + 1,
+          ]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
         });
 
