@@ -17,6 +17,7 @@ pragma solidity ^0.8.7;
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
+// import "hardhat/console.sol";
 
 // 3: Interfaces (none in this case)
 // 4: Libraries (none in this case)
@@ -190,17 +191,20 @@ contract Lottery is VRFConsumerBaseV2, KeeperCompatibleInterface {
     uint256, /*requestId*/
     uint256[] memory randomWords
   ) internal override {
-    uint256 indexOdWinner = randomWords[0] % s_players.length;
-    address payable recentWinner = s_players[indexOdWinner];
+    // console.log("Calling fulfillRandomWords");
+    uint256 indexOfWinner = randomWords[0] % s_players.length;
+    address payable recentWinner = s_players[indexOfWinner];
     s_recentWinner = recentWinner;
     s_lotteryState = LotteryState.OPEN;
     s_players = new address payable[](0); // reset the players array
     s_lastTimestamp = block.timestamp; // update the last timestamp to the current block timestamp
     // send all contract balance to the winner
     (bool success, ) = recentWinner.call{value: address(this).balance}("");
+    // console.log("Transferring balance to winner sucessfully:", success);
     if (!success) {
       revert Lottery__TransferFailed();
     }
+    // console.log("Emiting event 'WinnerPicked' to recent winner:", recentWinner);
     emit WinnerPicked(recentWinner);
   }
 
@@ -231,7 +235,7 @@ contract Lottery is VRFConsumerBaseV2, KeeperCompatibleInterface {
     return s_players.length;
   }
 
-  function getLatestTimestamp() public view returns (uint256) {
+  function getLastTimestamp() public view returns (uint256) {
     return s_lastTimestamp;
   }
 
