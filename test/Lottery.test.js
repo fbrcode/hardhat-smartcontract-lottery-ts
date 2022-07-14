@@ -5,12 +5,7 @@ const { assert, expect } = require("chai");
 !developmentChains.includes(network.name)
   ? describe.skip
   : describe("Lottery Unit Tests", async function () {
-      let lottery,
-        lotteryContract,
-        vrfCoordinatorV2Mock,
-        lotteryEntranceFee,
-        keepersUpdateIntervalSeconds,
-        player;
+      let lottery, lotteryContract, vrfCoordinatorV2Mock, lotteryEntranceFee, keepersUpdateIntervalSeconds, player;
       const chainId = network.config.chainId;
 
       beforeEach(async () => {
@@ -29,10 +24,7 @@ const { assert, expect } = require("chai");
         it("initializes the lottery correctly", async function () {
           const lotteryState = await lottery.getLotteryState();
           assert.equal(lotteryState.toString(), "0");
-          assert.equal(
-            keepersUpdateIntervalSeconds.toString(),
-            networkConfig[chainId].keepersUpdateIntervalSeconds
-          );
+          assert.equal(keepersUpdateIntervalSeconds.toString(), networkConfig[chainId].keepersUpdateIntervalSeconds);
         });
       });
 
@@ -50,32 +42,23 @@ const { assert, expect } = require("chai");
         });
 
         it("emits event on enter", async function () {
-          await expect(lottery.enterLottery({ value: lotteryEntranceFee })).to.emit(
-            lottery,
-            "LotteryEnter"
-          );
+          await expect(lottery.enterLottery({ value: lotteryEntranceFee })).to.emit(lottery, "LotteryEnter");
         });
 
         it("doesn't allow entrance when lottery is calculating", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
           // to run performUpkeep enough time has to pass
-          await network.provider.send("evm_increaseTime", [
-            keepersUpdateIntervalSeconds.toNumber() + 1,
-          ]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [keepersUpdateIntervalSeconds.toNumber() + 1]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           // we pretend to be a chainlink keeper
           await lottery.performUpkeep([]);
-          await expect(lottery.enterLottery({ value: lotteryEntranceFee })).to.be.revertedWith(
-            "Lottery__NotOpen()"
-          );
+          await expect(lottery.enterLottery({ value: lotteryEntranceFee })).to.be.revertedWith("Lottery__NotOpen()");
         });
       });
 
       describe("checkUpkeep", function () {
         it("returns false if people haven't sent any ETH", async function () {
-          await network.provider.send("evm_increaseTime", [
-            keepersUpdateIntervalSeconds.toNumber() + 1,
-          ]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [keepersUpdateIntervalSeconds.toNumber() + 1]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           // callStatic simulates the function call returns
           const { upkeepNeeded } = await lottery.callStatic.checkUpkeep([]);
@@ -84,9 +67,7 @@ const { assert, expect } = require("chai");
 
         it("returns false if lottery ins't open", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [
-            keepersUpdateIntervalSeconds.toNumber() + 1,
-          ]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [keepersUpdateIntervalSeconds.toNumber() + 1]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           await lottery.performUpkeep([]); // or await lottery.performUpkeep("0x");
           const lotteryState = await lottery.getLotteryState();
@@ -97,9 +78,7 @@ const { assert, expect } = require("chai");
 
         it("returns false if enough time hasn't passed", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [
-            keepersUpdateIntervalSeconds.toNumber() - 1,
-          ]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [keepersUpdateIntervalSeconds.toNumber() - 1]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           const { upkeepNeeded } = await lottery.callStatic.checkUpkeep("0x");
           assert(!upkeepNeeded);
@@ -107,9 +86,7 @@ const { assert, expect } = require("chai");
 
         it("returns true if enough time has passed, has players, eth, and is open", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [
-            keepersUpdateIntervalSeconds.toNumber() + 1,
-          ]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [keepersUpdateIntervalSeconds.toNumber() + 1]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           const { upkeepNeeded } = await lottery.callStatic.checkUpkeep("0x");
           assert(upkeepNeeded);
@@ -119,9 +96,7 @@ const { assert, expect } = require("chai");
       describe("performUpkeep", function () {
         it("it can only run if checkUpkeep is true", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [
-            keepersUpdateIntervalSeconds.toNumber() + 1,
-          ]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [keepersUpdateIntervalSeconds.toNumber() + 1]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           const tx = await lottery.performUpkeep([]);
           assert(tx);
@@ -133,9 +108,7 @@ const { assert, expect } = require("chai");
 
         it("updates the lottery state, emits an event, and calls the vrf coordinator", async function () {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [
-            keepersUpdateIntervalSeconds.toNumber() + 1,
-          ]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [keepersUpdateIntervalSeconds.toNumber() + 1]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
           const txResponse = await lottery.performUpkeep([]);
           const txReceipt = await txResponse.wait(1);
@@ -149,24 +122,21 @@ const { assert, expect } = require("chai");
       describe("fulfillRandomWords", function () {
         beforeEach(async () => {
           await lottery.enterLottery({ value: lotteryEntranceFee });
-          await network.provider.send("evm_increaseTime", [
-            keepersUpdateIntervalSeconds.toNumber() + 1,
-          ]); // makes the local blockchain shift time ahead
+          await network.provider.send("evm_increaseTime", [keepersUpdateIntervalSeconds.toNumber() + 1]); // makes the local blockchain shift time ahead
           await network.provider.request({ method: "evm_mine", params: [] }); // mines one extra block
         });
 
         it("can only be called after performUpkeep", async function () {
           // request id = 0
-          await expect(
-            vrfCoordinatorV2Mock.fulfillRandomWords(0, lottery.address)
-          ).to.be.revertedWith("nonexistent request");
+          await expect(vrfCoordinatorV2Mock.fulfillRandomWords(0, lottery.address)).to.be.revertedWith(
+            "nonexistent request"
+          );
           // request id = 1
-          await expect(
-            vrfCoordinatorV2Mock.fulfillRandomWords(0, lottery.address)
-          ).to.be.revertedWith("nonexistent request");
+          await expect(vrfCoordinatorV2Mock.fulfillRandomWords(0, lottery.address)).to.be.revertedWith(
+            "nonexistent request"
+          );
         });
 
-        /* listener event capture not working properly
         // recommendation to split it further (too many tests)
         it("picks a winner, resets the lottery, and sends money", async () => {
           const additionalEntrants = 3;
@@ -182,11 +152,11 @@ const { assert, expect } = require("chai");
           // call performUpkeep (mock being from chainlink keepers), which kick off fulfillRandomWords
           // fulfillRandomWords (mock being from chainlink vrf)
           // we will have to wait for the fulfillRandomWords to be called (setup a listener for WinnerPicked event [Promise])
-          console.log("Init Promise");
+          console.log("\t Initiate event listener... 👂");
           await new Promise(async (resolve, reject) => {
             // this is the listener for the event (when WinnerPicked event is emitted, resolve the promise)
             lottery.once("WinnerPicked", async () => {
-              console.log("WinnerPicked event emitted!");
+              console.log("\t 🆗 'WinnerPicked' event emitted!");
               try {
                 // const recentWinner = await lottery.getRecentWinner();
                 const lotteryState = await lottery.getLotteryState();
@@ -212,6 +182,6 @@ const { assert, expect } = require("chai");
               lottery.address
             );
           });
-        });*/
+        });
       });
     });
