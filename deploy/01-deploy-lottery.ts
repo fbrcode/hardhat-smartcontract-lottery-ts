@@ -1,20 +1,23 @@
-const { network, ethers } = require("hardhat");
-const { developmentChains, networkConfig } = require("../helper-hardhat-config");
-const { verify } = require("../utils/verify");
-require("dotenv").config();
+import { DeployFunction } from 'hardhat-deploy/types';
+import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
-const MOCK_VRF_SUB_FUND_AMOUNT = "1000000000000000000000";
+import { networkConfig } from '../helper-hardhat-config';
+import verify from '../utils/verify';
 
-module.exports = async function ({ getNamedAccounts, deployments }) {
+const MOCK_VRF_SUB_FUND_AMOUNT = '1000000000000000000000';
+
+const deployLottery: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+  // module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deployments, getNamedAccounts, network, ethers } = hre;
   const { deploy, log } = deployments;
   const { deployer } = await getNamedAccounts();
-  const chainId = network.config.chainId;
+  const chainId = network.config.chainId === undefined ? 31337 : network.config.chainId;
   let vrfCoordinatorV2Address, subscriptionId;
 
   log(`Deploying lottery on network: ${network.name}`);
-  if (developmentChains.includes(network.name)) {
+  if (chainId == 31337) {
     try {
-      const vrfCoordinatorV2Mock = await ethers.getContract("VRFCoordinatorV2Mock");
+      const vrfCoordinatorV2Mock = await ethers.getContract('VRFCoordinatorV2Mock');
       vrfCoordinatorV2Address = vrfCoordinatorV2Mock.address;
       // extract subscription id from the mocked contract
       const transactionResponse = await vrfCoordinatorV2Mock.createSubscription();
@@ -53,15 +56,15 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
     callbackGasLimit,
     keepersUpdateIntervalSeconds,
   ];
-  const lottery = await deploy("Lottery", {
+  const lottery = await deploy('Lottery', {
     from: deployer,
     args: args,
     log: true,
-    waitConfirmations: network.config.blockConfirmations || 1,
+    waitConfirmations: networkConfig[chainId].blockConfirmations || 1,
   });
   log(`Lottery deployed at ${lottery.address}`);
 
-  if (!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
+  if (chainId != 31337 && process.env.ETHERSCAN_API_KEY) {
     log(`Verifying contract "${lottery.address}" with args [${args}]...`);
     await verify(lottery.address, args);
   }
@@ -69,4 +72,5 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
   log(`----------------------------------------------------------`);
 };
 
-module.exports.tags = ["all", "lottery"];
+export default deployLottery;
+deployLottery.tags = ['all', 'lottery'];
