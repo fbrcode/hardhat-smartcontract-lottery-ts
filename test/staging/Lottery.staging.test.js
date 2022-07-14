@@ -4,8 +4,8 @@
  * 2. Deploy our contract using the Subscription ID --> rinkeby deploy cmd: yarn hardhat deploy --network rinkeby
  * 2c. Check the deployment transaction and verification --> https://rinkeby.etherscan.io/tx/0xea6dd2f936e21216719a28faf56596fe5c9db89b86142c9be66011a306e8487f / https://rinkeby.etherscan.io/address/0x08079D26743d5ef2C12033a5992A890A01d2dF0d#code
  * 2c. Grab the contract address --> rinkeby lottery contract address: 0x08079D26743d5ef2C12033a5992A890A01d2dF0d  (VRF coordinator address: 0x6168499c0cFfCaCD319c818142124B7A15E857ab)
- * 3. Register the contract with the Chainlink VRF and its Subscription ID --> Fund it with LINK
- * 4. Register the contract with the Chainlink Keepers --> Fund it with LINK
+ * 3. Register the contract with the Chainlink VRF and its Subscription ID --> Fund it with LINK :: https://vrf.chain.link/rinkeby/5959
+ * 4. Register the contract with the Chainlink Keepers --> Fund it with LINK :: https://keepers.chain.link/rinkeby/2524
  * 5. Run staging tests: yarn hardhat test --network rinkeby
 yarn run v1.22.18
 $ ~/src/code-along-solidity/hardhat-smartcontract-lottery-ts/node_modules/.bin/hardhat test --network rinkeby
