@@ -6,3 +6,4 @@ coverage
 gas-reporter.log
 coverage.json
 deployments
+typechain-types
