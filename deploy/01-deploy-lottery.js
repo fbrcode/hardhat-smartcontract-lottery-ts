@@ -1,11 +1,9 @@
 const { network, ethers } = require("hardhat");
-const {
-  developmentChains,
-  networkConfig,
-  MOCK_VRF_SUB_FUND_AMOUNT,
-} = require("../helper-hardhat-config");
+const { developmentChains, networkConfig } = require("../helper-hardhat-config");
 const { verify } = require("../utils/verify");
 require("dotenv").config();
+
+const MOCK_VRF_SUB_FUND_AMOUNT = "1000000000000000000000";
 
 module.exports = async function ({ getNamedAccounts, deployments }) {
   const { deploy, log } = deployments;
