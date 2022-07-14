@@ -1,5 +1,5 @@
 const { getNamedAccounts, deployments, ethers, network } = require("hardhat");
-const { developmentChains, networkConfig } = require("../helper-hardhat-config");
+const { developmentChains, networkConfig } = require("../../helper-hardhat-config");
 const { assert, expect } = require("chai");
 
 !developmentChains.includes(network.name)
@@ -147,7 +147,7 @@ const { assert, expect } = require("chai");
             await lottery.enterLottery({ value: lotteryEntranceFee });
           }
           // keep note of the starting timestamp
-          // const startingTimestamp = await lottery.getLastTimestamp();
+          const startingTimestamp = await lottery.getLastTimestamp();
 
           // call performUpkeep (mock being from chainlink keepers), which kick off fulfillRandomWords
           // fulfillRandomWords (mock being from chainlink vrf)
@@ -158,13 +158,27 @@ const { assert, expect } = require("chai");
             lottery.once("WinnerPicked", async () => {
               console.log("\t 🆗 'WinnerPicked' event emitted!");
               try {
-                // const recentWinner = await lottery.getRecentWinner();
+                const recentWinner = await lottery.getRecentWinner();
+                // spy on the winner ==> accounts[2].address
+                // console.log(`recent winner = ${recentWinner}`);
+                // console.log(`account 0 = ${accounts[0].address}`);
+                // console.log(`account 1 = ${accounts[1].address}`);
+                // console.log(`account 2 = ${accounts[2].address}`);
+                // console.log(`account 3 = ${accounts[3].address}`);
+                // console.log(`account 4 = ${accounts[4].address}`);
+                const winnerEndingBallance = await accounts[2].getBalance();
                 const lotteryState = await lottery.getLotteryState();
-                // const lastTimestamp = await lottery.getLastTimestamp();
-                // const numberOfPlayers = await lottery.getNumberOfPlayers();
-                // assert.equal(numberOfPlayers.toString(), "0");
-                assert.equal(lotteryState, 0);
-                // assert(lastTimestamp > startingTimestamp);
+                const lastTimestamp = await lottery.getLastTimestamp();
+                const numberOfPlayers = await lottery.getNumberOfPlayers();
+                assert.equal(numberOfPlayers.toString(), "0");
+                assert.equal(lotteryState.toString(), "0");
+                assert(lastTimestamp > startingTimestamp);
+                assert.equal(
+                  winnerEndingBallance.toString(),
+                  winnerStartingBallance
+                    .add(lotteryEntranceFee.mul(additionalEntrants).add(lotteryEntranceFee))
+                    .toString()
+                );
                 resolve();
               } catch (e) {
                 // if any exception is thrown (even if it times out: defined in hardhat.config(.js/.ts))
@@ -175,8 +189,7 @@ const { assert, expect } = require("chai");
             // below, we will fire the event, and the listener will pick it up, and resolve the promise
             const tx = await lottery.performUpkeep("0x");
             const txReceipt = await tx.wait(1);
-            // console.log("performUpkeep txReceipt request id: ", txReceipt.events[1].args.requestId);
-            // console.log(JSON.stringify(lottery, null, 2));
+            const winnerStartingBallance = await accounts[2].getBalance();
             await vrfCoordinatorV2Mock.fulfillRandomWords(
               txReceipt.events[1].args.requestId, // [1] means the second event (the first [0] event is emitted by VRF coordinator contract)
               lottery.address
