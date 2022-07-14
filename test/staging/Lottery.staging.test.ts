@@ -26,24 +26,29 @@ $ ~/src/code-along-solidity/hardhat-smartcontract-lottery-ts/node_modules/.bin/h
 ✨  Done in 472.41s.
  */
 
-const { getNamedAccounts, ethers, network } = require("hardhat");
-const { assert, expect } = require("chai");
-const { developmentChains } = require("../../helper-hardhat-config");
+import { assert, expect } from 'chai';
+import { BigNumber } from 'ethers';
+import { network, ethers, getNamedAccounts } from 'hardhat';
+import { Lottery } from '../../typechain-types';
 
-developmentChains.includes(network.name)
+const chainId = network.config.chainId === undefined ? 31337 : network.config.chainId;
+
+chainId === 31337
   ? describe.skip
-  : describe("Lottery Staging Tests", () => {
-      let lottery, lotteryEntranceFee, deployer;
+  : describe('Lottery Staging Tests', () => {
+      let lottery: Lottery;
+      let lotteryEntranceFee: BigNumber;
+      let deployer: string;
 
       beforeEach(async () => {
         deployer = (await getNamedAccounts()).deployer;
-        if (!deployer) throw new Error("❌ No deployer account found 🥺");
-        lottery = await ethers.getContract("Lottery", deployer);
+        if (!deployer) throw new Error('❌ No deployer account found 🥺');
+        lottery = await ethers.getContract('Lottery', deployer);
         lotteryEntranceFee = await lottery.getEntranceFee();
       });
 
-      describe("fulfillRandomWords", () => {
-        it("works with live chainlink keepers and chainlink VRF, we get a random winner", async () => {
+      describe('fulfillRandomWords', () => {
+        it('works with live chainlink keepers and chainlink VRF, we get a random winner', async () => {
           // we only have to enter the lottery and the process will kick off
           const startingTimestamp = await lottery.getLastTimestamp();
           const accounts = await ethers.getSigners();
@@ -51,9 +56,9 @@ developmentChains.includes(network.name)
           console.log(`\t 🔍 Target lottery contract address: ${lottery.address}`);
           console.log(`\t 🔍 Lottery entrance fee (ETH): ${ethers.utils.formatEther(lotteryEntranceFee)}`);
           // setup the listener before entering the lottery (just in case the blockchain moves really fast)...
-          console.log("\t Initiate event listener... 👂");
-          await new Promise(async (resolve, reject) => {
-            lottery.once("WinnerPicked", async () => {
+          console.log('\t Initiate event listener... 👂');
+          await new Promise<void>(async (resolve, reject) => {
+            lottery.once('WinnerPicked', async () => {
               console.log("\t 🏆 'WinnerPicked' event emitted!");
               try {
                 // add the assertions here
@@ -73,10 +78,10 @@ developmentChains.includes(network.name)
               }
             });
             // ... then entering the lottery
-            console.log("\t Entering the lottery... 🎉");
+            console.log('\t Entering the lottery... 🎉');
             const tx = await lottery.enterLottery({ value: lotteryEntranceFee });
             await tx.wait(1);
-            console.log("\t 🚀 Entered the lottery! Now waiting for event call ⏳ ...");
+            console.log('\t 🚀 Entered the lottery! Now waiting for event call ⏳ ...');
 
             const winnerStartingBalance = await accounts[0].getBalance(); // single connected account
             // wait for the event to be emitted to finish the code execution with resolve or reject callbacks (might be timeout reject)
