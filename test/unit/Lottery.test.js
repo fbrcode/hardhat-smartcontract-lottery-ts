@@ -166,7 +166,7 @@ const { assert, expect } = require("chai");
                 // console.log(`account 2 = ${accounts[2].address}`);
                 // console.log(`account 3 = ${accounts[3].address}`);
                 // console.log(`account 4 = ${accounts[4].address}`);
-                const winnerEndingBallance = await accounts[2].getBalance();
+                const winnerEndingBalance = await accounts[2].getBalance();
                 const lotteryState = await lottery.getLotteryState();
                 const lastTimestamp = await lottery.getLastTimestamp();
                 const numberOfPlayers = await lottery.getNumberOfPlayers();
@@ -174,8 +174,8 @@ const { assert, expect } = require("chai");
                 assert.equal(lotteryState.toString(), "0");
                 assert(lastTimestamp > startingTimestamp);
                 assert.equal(
-                  winnerEndingBallance.toString(),
-                  winnerStartingBallance
+                  winnerEndingBalance.toString(),
+                  winnerStartingBalance
                     .add(lotteryEntranceFee.mul(additionalEntrants).add(lotteryEntranceFee))
                     .toString()
                 );
@@ -189,7 +189,7 @@ const { assert, expect } = require("chai");
             // below, we will fire the event, and the listener will pick it up, and resolve the promise
             const tx = await lottery.performUpkeep("0x");
             const txReceipt = await tx.wait(1);
-            const winnerStartingBallance = await accounts[2].getBalance();
+            const winnerStartingBalance = await accounts[2].getBalance();
             await vrfCoordinatorV2Mock.fulfillRandomWords(
               txReceipt.events[1].args.requestId, // [1] means the second event (the first [0] event is emitted by VRF coordinator contract)
               lottery.address
