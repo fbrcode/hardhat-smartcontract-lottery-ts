@@ -13,9 +13,17 @@ type NetworkConfig = {
 
 type NetworkConfigGroup = {
   [key: number]: NetworkConfig;
+  globalSettings: {
+    sourceDeploymentFolder: string;
+    targetFrontendFolder: string;
+  };
 };
 
 export const networkConfig: NetworkConfigGroup = {
+  globalSettings: {
+    sourceDeploymentFolder: './deployments',
+    targetFrontendFolder: '../nextjs-smartcontract-lottery-ts/constants',
+  },
   31337: {
     name: 'hardhat',
     entranceFee: ethers.utils.parseEther('0.01').toString(),

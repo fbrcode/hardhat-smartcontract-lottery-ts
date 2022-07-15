@@ -19,14 +19,25 @@ const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY || 'key';
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
   networks: {
-    hardhat: {
+    localhost: {
+      live: false,
+      saveDeployments: true,
       chainId: 31337,
+      tags: ['local'],
+    },
+    hardhat: {
+      live: false,
+      saveDeployments: true,
+      chainId: 31337,
+      tags: ['test', 'local'],
     },
     rinkeby: {
+      live: true,
+      saveDeployments: true,
       url: RINKEBY_RPC_URL,
       chainId: 4,
       accounts: [PRIVATE_KEY],
-      saveDeployments: true,
+      tags: ['staging'],
     },
   },
   etherscan: {
